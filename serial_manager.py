@@ -104,6 +104,28 @@ class SerialManager:
         except (TypeError, ValueError):
             return None
 
+    def get_tube_dead_time(self) -> float | None:
+        r = self.send("GET tubeDeadTimeCompensation")
+        try:
+            return float(r)
+        except (TypeError, ValueError):
+            return None
+
+    def get_tube_background(self) -> float | None:
+        r = self.send("GET tubeBackgroundCompensation")
+        try:
+            return float(r)
+        except (TypeError, ValueError):
+            return None
+
+    def get_tube_hv_frequency(self) -> int | None:
+        r = self.send("GET tubeHVFrequency")
+        try:
+            return int(r)
+        except (TypeError, ValueError):
+            return None
+
+
     def set_device_time(self, unix_ts: int) -> bool:
         """Sincroniza el reloj del dispositivo con un timestamp UNIX.
         Retorna True si el dispositivo confirmó con OK."""

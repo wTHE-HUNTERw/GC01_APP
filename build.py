@@ -42,7 +42,7 @@ def build():
         try:
             os.remove(exe_path)
         except PermissionError:
-            print("⚠️ El archivo ejecutable está bloqueado o en ejecución. Intentando cerrarlo...")
+            print("AVISO: El archivo ejecutable esta bloqueado o en ejecucion. Intentando cerrarlo...")
             if sys.platform.startswith("win"):
                 try:
                     subprocess.run(["taskkill", "/F", "/IM", "GC01_RadPro_Monitor.exe"],
@@ -50,10 +50,10 @@ def build():
                     import time
                     time.sleep(1) # Esperar a que Windows libere el handle del archivo
                     os.remove(exe_path)
-                    print("¡Ejecutable anterior cerrado y eliminado correctamente!")
+                    print("Ejecutable anterior cerrado y eliminado correctamente.")
                 except Exception as e:
-                    print(f"❌ Error crítico: No se pudo eliminar el ejecutable en 'dist' ({e}).")
-                    print("Por favor, cierra la aplicación 'GC01_RadPro_Monitor.exe' desde el Administrador de Tareas y vuelve a intentarlo.")
+                    print(f"ERROR CRITICO: No se pudo eliminar el ejecutable en 'dist' ({e}).")
+                    print("Por favor, cierra la aplicacion 'GC01_RadPro_Monitor.exe' desde el Administrador de Tareas y vuelve a intentarlo.")
                     sys.exit(1)
             else:
                 sys.exit(1)
@@ -79,8 +79,9 @@ def build():
     print(f"Ejecutando PyInstaller con los argumentos: {args}")
     import PyInstaller.__main__
     PyInstaller.__main__.run(args)
-    print("\n🎉 ¡Compilación completada con éxito!")
+    print("\nCompilacion completada con exito!")
     print("El archivo ejecutable listo se encuentra en la carpeta: dist/GC01_RadPro_Monitor.exe")
+
 
 
 if __name__ == "__main__":

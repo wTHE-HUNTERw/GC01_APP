@@ -94,9 +94,17 @@ class App(ctk.CTk):
                                       command=self._toggle_connect)
         self.btn_conn.pack(fill="x", padx=14, pady=(0,4))
 
-        self.status_lbl = ctk.CTkLabel(sb, text="● Desconectado",
+        status_frame = ctk.CTkFrame(sb, fg_color="transparent")
+        status_frame.pack(fill="x", padx=14)
+
+        self.status_lbl = ctk.CTkLabel(status_frame, text="● Desconectado",
                                        font=("Outfit",12), text_color=RED)
-        self.status_lbl.pack(anchor="w", padx=14)
+        self.status_lbl.pack(side="left")
+
+        self.led_indicator = ctk.CTkLabel(status_frame, text="●",
+                                           font=("Segoe UI",14), text_color="#222222")
+        self.led_indicator.pack(side="right", padx=(0,5))
+
 
         sep()
         label("DISPOSITIVO", ("Outfit",9,"bold"), MUTED).pack(anchor="w", padx=14, pady=(0,4))
@@ -104,8 +112,10 @@ class App(ctk.CTk):
         dev_card.pack(fill="x", padx=14, pady=(0,4))
         self.dev_lbl = {}
         for k, d in [("hardware","Hardware"),("firmware","Firmware"),
-                     ("tube","Tubo"),("sensitivity","Sensibilidad")]:
-            r = ctk.CTkFrame(dev_card, fg_color="transparent"); r.pack(fill="x", padx=10, pady=3)
+                     ("tube","Tubo"),("sensitivity","Sensibilidad"),
+                     ("dead_time","Tiempo Muerto"),("hv_freq","Freq. de HV"),
+                     ("bg_comp","Comp. de Fondo")]:
+            r = ctk.CTkFrame(dev_card, fg_color="transparent"); r.pack(fill="x", padx=10, pady=2)
             ctk.CTkLabel(r, text=d, font=("Outfit",10), text_color=MUTED).pack(side="left")
             v = ctk.CTkLabel(r, text="—", font=("JetBrains Mono",10), text_color=TEXT)
             v.pack(side="right"); self.dev_lbl[k] = v
@@ -170,8 +180,9 @@ class App(ctk.CTk):
         main = ctk.CTkFrame(self, fg_color=BG, corner_radius=0)
         main.grid(row=0, column=1, sticky="nsew", padx=(1,0))
         main.grid_columnconfigure((0,1,2), weight=1)
-        main.grid_rowconfigure(1, weight=2)
-        main.grid_rowconfigure(2, weight=3)
+        main.grid_rowconfigure(0, weight=0)
+        main.grid_rowconfigure(1, weight=5)
+        main.grid_rowconfigure(2, weight=2)
 
         gc = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12)
         gc.grid(row=0, column=0, padx=(12,6), pady=(12,6), sticky="nsew")
@@ -179,7 +190,7 @@ class App(ctk.CTk):
         self.cpm_gauge = ArcGauge(gc, max_val=1000, unit="CPM",
                                   label="Counts Per Minute", width=200, height=160)
         self.cpm_gauge.pack(fill="both", expand=True, padx=8)
-        self.cpm_lv = ctk.CTkLabel(gc, text="● Sin datos", font=("Outfit",12), text_color=MUTED)
+        self.cpm_lv = ctk.CTkLabel(gc, text="⚪ Sin datos", font=("Outfit",12), text_color=MUTED)
         self.cpm_lv.pack(pady=(0,10))
 
         dd = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12)
@@ -208,17 +219,33 @@ class App(ctk.CTk):
             v = ctk.CTkLabel(f, text="—", font=("JetBrains Mono",11,"bold"), text_color=c)
             v.pack(side="right", padx=10); self.stat_lbl[k] = v
 
-        cf = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12)
-        cf.grid(row=1, column=0, columnspan=3, padx=12, pady=(0,6), sticky="nsew")
-        hdr = ctk.CTkFrame(cf, fg_color="transparent"); hdr.pack(fill="x", padx=14, pady=(10,0))
-        ctk.CTkLabel(hdr, text="Análisis Estadístico de Radiación — Estocástico vs. Tendencia",
-                     font=("Outfit",13,"bold"), text_color=TEXT).pack(side="left")
+        self.tabview = ctk.CTkTabview(main, fg_color=CARD, corner_radius=12,
+                                     segmented_button_selected_color="#1f6feb",
+                                     segmented_button_selected_hover_color="#388bfd",
+                                     segmented_button_unselected_color=CARD2,
+                                     text_color=TEXT)
+        self.tabview.grid(row=1, column=0, columnspan=3, padx=12, pady=(0,6), sticky="nsew")
+        
+        self.tabview.add("Tendencia Temporal (SMA)")
+        self.tabview.add("Distribución de Poisson (Estadística)")
+        
+        tab_sma = self.tabview.tab("Tendencia Temporal (SMA)")
+        tab_poisson = self.tabview.tab("Distribución de Poisson (Estadística)")
 
+        # --- Gráfico de tendencia (Tab 1) ---
         self.fig = Figure(figsize=(1,1), facecolor=CARD)
         self.ax  = self.fig.add_subplot(111)
         self._style_chart()
-        self.chart_canvas = FigureCanvasTkAgg(self.fig, master=cf)
+        self.chart_canvas = FigureCanvasTkAgg(self.fig, master=tab_sma)
         self.chart_canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(4,10))
+
+        # --- Gráfico de Poisson (Tab 2) ---
+        self.fig_hist = Figure(figsize=(1,1), facecolor=CARD)
+        self.ax_hist  = self.fig_hist.add_subplot(111)
+        self._style_hist_chart()
+        self.hist_canvas = FigureCanvasTkAgg(self.fig_hist, master=tab_poisson)
+        self.hist_canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=(4,10))
+
 
         lf = ctk.CTkFrame(main, fg_color=CARD, corner_radius=12)
         lf.grid(row=2, column=0, columnspan=3, padx=12, pady=(0,12), sticky="nsew")
@@ -242,6 +269,15 @@ class App(ctk.CTk):
                         borderwidth=0, font=("Outfit",10,"bold"))
         style.map("Custom.Treeview", background=[("selected","#1f6feb")])
 
+        # Solución de compatibilidad para habilitar colores de tags en Treeview (Zebra Striping)
+        def fixed_map(option):
+            return [elm for elm in style.map("Treeview", query_opt=option)
+                    if elm[:2] != ("!disabled", "!selected")]
+        style.map("Custom.Treeview",
+                  foreground=fixed_map("foreground"),
+                  background=fixed_map("background"))
+
+
         frm = ctk.CTkFrame(lf, fg_color=CARD2, corner_radius=8)
         frm.pack(fill="both", expand=True, padx=10, pady=(0,10))
         vsb = ttk.Scrollbar(frm, orient="vertical")
@@ -254,6 +290,80 @@ class App(ctk.CTk):
             self.tree.heading(c, text=h)
             self.tree.column(c, anchor="center", width=120)
         self.tree.pack(fill="both", expand=True)
+
+        # Configuración de tags para zebra striping (filas de colores alternados)
+        self.tree.tag_configure("even", background=CARD)
+        self.tree.tag_configure("odd", background=CARD2)
+
+
+    # ── Histogram style & updates ─────────────────────────────────────────────
+    def _style_hist_chart(self):
+        self.ax_hist.set_facecolor(CARD2)
+        self.fig_hist.patch.set_facecolor(CARD)
+        self.ax_hist.tick_params(colors=MUTED, labelsize=9)
+        for spine in self.ax_hist.spines.values():
+            spine.set_color(BORDER)
+        self.ax_hist.set_xlabel("Tasa de Conteo (CPM)", color=MUTED, fontsize=10)
+        self.ax_hist.set_ylabel("Densidad de Probabilidad", color=MUTED, fontsize=10)
+        self.ax_hist.grid(color=BORDER, linestyle=":", linewidth=0.5, alpha=0.5)
+        self.fig_hist.subplots_adjust(bottom=0.2, left=0.1, right=0.98, top=0.92)
+
+    def _update_hist_chart(self):
+        self.ax_hist.clear()
+        self._style_hist_chart()
+        if len(self.cpm_hist) > 5:
+            ys = np.array(list(self.cpm_hist))
+            
+            mean_cpm = np.mean(ys)
+            std_obs = np.std(ys)
+            tau = self._poll_iv / 60.0
+            
+            # Desviación teórica para un proceso de Poisson con tasa de conteo media (cpm)
+            std_theo = math.sqrt(mean_cpm / tau) if mean_cpm > 0 else 0
+            
+            # Chi-cuadrado reducido (X2/dof)
+            if std_theo > 0:
+                chi2_red = (std_obs ** 2) / (std_theo ** 2)
+            else:
+                chi2_red = 0.0
+                
+            # Diagnóstico del ajuste para el físico
+            if chi2_red == 0:
+                status = "Sin radiacion registrada"
+            elif 0.7 <= chi2_red <= 1.3:
+                status = "Decaimiento Estocastico de Poisson Puro"
+            elif chi2_red > 1.3:
+                status = "Fluctuacion Activa de Campo / Variabilidad de Tasa"
+            else:
+                status = "Varianza Sub-Poissoniana (Suavizado Artificial)"
+                
+            counts, bins, _ = self.ax_hist.hist(ys, bins="auto", density=True, color=GREEN, alpha=0.35, edgecolor=BORDER, label="Hist. Observado")
+            
+            if std_theo > 0:
+                xmin, xmax = self.ax_hist.get_xlim()
+                x_axis = np.linspace(xmin, xmax, 300)
+                y_axis = (1.0 / (std_theo * math.sqrt(2 * math.pi))) * np.exp(-0.5 * ((x_axis - mean_cpm) / std_theo) ** 2)
+                self.ax_hist.plot(x_axis, y_axis, color=CYAN, linewidth=2.0, label="Curva Teorica de Poisson")
+                
+            info_text = (
+                f"Analisis Estocastico y Chi-Cuadrado:\n"
+                f" Promedio (mu): {mean_cpm:.2f} CPM\n"
+                f" Desv. Est. Obs. (s): {std_obs:.2f} CPM\n"
+                f" Desv. Est. Teo. (sigma): {std_theo:.2f} CPM\n"
+                f" Chi-Cuadrado Red. (X2/dof): {chi2_red:.3f}\n"
+                f" Diagnostico: {status}"
+            )
+            
+            self.ax_hist.text(0.03, 0.95, info_text, transform=self.ax_hist.transAxes,
+                              fontsize=8.5, color=TEXT, va='top', ha='left',
+                              bbox=dict(boxstyle="round,pad=0.5", facecolor=CARD, edgecolor=BORDER, alpha=0.85))
+            
+            self.ax_hist.legend(loc="upper right", facecolor=CARD, edgecolor=BORDER, fontsize=8, labelcolor=TEXT)
+        else:
+            self.ax_hist.text(0.5, 0.5, "Esperando acumular mas muestras en la sesion\npara realizar el analisis estadistico (min. 5)...",
+                              color=MUTED, fontsize=10, ha='center', va='center')
+        
+        self.hist_canvas.draw_idle()
 
     # ── Chart style ──────────────────────────────────────────────────────────
     def _style_chart(self):
@@ -281,7 +391,7 @@ class App(ctk.CTk):
             ys = np.array(list(self.cpm_hist))
             
             # 1. Trazamos los datos crudos estocásticos (suaves, al fondo)
-            self.ax.plot(xs, ys, color=GREEN, linewidth=1.2, alpha=0.4, label="Lectura Cruda (Ruido)")
+            self.ax.plot(xs, ys, color=GREEN, linewidth=2.0, alpha=0.45, label="Lectura Cruda (Ruido)")
             
             # 2. Análisis Estadístico (Filtro SMA y Poisson)
             window = min(10, len(ys)) # Ventana de promediado de 10 muestras
@@ -294,19 +404,26 @@ class App(ctk.CTk):
                 sigma = np.sqrt(sma)
                 
                 # Dibujamos la media (Tendencia Real)
-                self.ax.plot(xs_sma, sma, color=CYAN, linewidth=2.0, solid_capstyle="round", label=f"Tendencia Real (SMA n={window})")
+                self.ax.plot(xs_sma, sma, color=CYAN, linewidth=3.5, solid_capstyle="round", label=f"Tendencia Real (SMA n={window})")
                 
                 # Dibujamos la franja de incertidumbre ±1σ
-                self.ax.fill_between(xs_sma, sma - sigma, sma + sigma, color=CYAN, alpha=0.2, label="Banda Incertidumbre (±1σ)")
+                self.ax.fill_between(xs_sma, sma - sigma, sma + sigma, color=CYAN, alpha=0.15, label="Incertidumbre Poisson (±1σ)")
+                
+                # Relleno translúcido Sci-Fi bajo la tendencia real (SMA)
+                self.ax.fill_between(xs_sma, 0, sma, color=CYAN, alpha=0.06, label="Dosis Relativa")
             
-            # 3. Líneas de alerta radiológica estáticas
-            self.ax.axhline(y=100, color=YELLOW, linewidth=0.8, linestyle="--", alpha=0.6, label="Umbral Elevado (100 CPM)")
-            self.ax.axhline(y=500, color=RED,    linewidth=0.8, linestyle="--", alpha=0.6, label="Umbral Peligro (500 CPM)")
+            # 3. Líneas de alerta radiológica con etiquetas de texto integradas (sin emojis para evitar errores de fuentes en Matplotlib)
+            self.ax.axhline(y=100, color=YELLOW, linewidth=1.0, linestyle="--", alpha=0.5)
+            self.ax.text(0.98, 108, " Umbral Elevado (100 CPM)", color=YELLOW, fontsize=8, alpha=0.7, va='bottom', ha='right', transform=self.ax.get_yaxis_transform())
+
+            self.ax.axhline(y=500, color=RED,    linewidth=1.0, linestyle="--", alpha=0.5)
+            self.ax.text(0.98, 508, " Umbral Peligroso (500 CPM)", color=RED, fontsize=8, alpha=0.7, va='bottom', ha='right', transform=self.ax.get_yaxis_transform())
             
             # 4. Mostrar la leyenda para entender la gráfica
             self.ax.legend(loc="upper left", facecolor=CARD, edgecolor=BORDER, fontsize=8, labelcolor=TEXT)
 
         self.chart_canvas.draw_idle()
+
 
     # ── Serial & polling ─────────────────────────────────────────────────────
     def _toggle_connect(self):
@@ -333,17 +450,20 @@ class App(ctk.CTk):
     def _set_connected(self):
         self.btn_conn.configure(text="✖  Desconectar", fg_color="#6e1818", hover_color="#8b2020")
         self.status_lbl.configure(text="● Conectado", text_color=GREEN)
+        self.led_indicator.configure(text_color="#103020") # Verde tenue (modo espera)
         self.btn_start.configure(state="normal")
         self.btn_sync_time.configure(state="normal")
 
     def _set_disconnected(self):
         self.btn_conn.configure(text="⚡  Conectar", fg_color="#238636", hover_color="#2ea043")
         self.status_lbl.configure(text="● Desconectado", text_color=RED)
+        self.led_indicator.configure(text_color="#222222") # Apagado
         self.btn_start.configure(state="disabled")
         self.btn_stop.configure(state="disabled")
         self.btn_exp.configure(state="disabled")
         self.btn_clr.configure(state="disabled")
         self.btn_sync_time.configure(state="disabled")
+
 
     def _load_device_info(self):
         def run():
@@ -358,7 +478,27 @@ class App(ctk.CTk):
             if sens:
                 self.sensitivity = sens
                 self.dev_lbl["sensitivity"].configure(text=f"{sens:.1f} cpm/µSv/h")
+
+            # Telemetría avanzada para el físico
+            dt = self.serial.get_tube_dead_time()
+            if dt is not None:
+                self.dev_lbl["dead_time"].configure(text=f"{dt * 1e6:.1f} µs" if dt < 1.0 else f"{dt:.2f} s")
+            else:
+                self.dev_lbl["dead_time"].configure(text="Desactivado")
+
+            bg = self.serial.get_tube_background()
+            if bg is not None:
+                self.dev_lbl["bg_comp"].configure(text=f"{bg:.1f} CPM")
+            else:
+                self.dev_lbl["bg_comp"].configure(text="0.0 CPM")
+
+            hvf = self.serial.get_tube_hv_frequency()
+            if hvf is not None:
+                self.dev_lbl["hv_freq"].configure(text=f"{hvf} Hz")
+            else:
+                self.dev_lbl["hv_freq"].configure(text="—")
         threading.Thread(target=run, daemon=True).start()
+
 
     def _start(self):
         if not self.serial.connected:
@@ -420,14 +560,29 @@ class App(ctk.CTk):
     def _update_ui(self, cpm, dose, volt, puls, row):
         color, level = level_for(cpm)
         self.cpm_gauge.set_value(cpm)
-        self.cpm_lv.configure(text=f"● {level}", text_color=color)
+        self.cpm_lv.configure(text=level, text_color=color) # Eliminamos el "● " ya que level ahora incluye emoji
         self.dose_gauge.set_value(dose)
         self.dose_lbl.configure(text=f"Acum: {self.dose_acc:.4f} µSv")
 
+        # Flashear el indicador LED de actividad (Heartbeat)
+        self.led_indicator.configure(text_color=GREEN)
+        self.after(150, lambda: self.led_indicator.configure(text_color="#103020" if self.serial.connected else "#222222"))
+
         if volt is not None:
-            self.batt_lbl.configure(text=f"{volt:.3f} V")
             pct = max(0, min(1, (volt - 2.7) / (4.2 - 2.7)))
             self.batt_bar.set(pct)
+            
+            # Icono dinámico según porcentaje de carga de batería
+            if pct > 0.8:
+                icon = "🔋 [Lleno]"
+            elif pct > 0.5:
+                icon = "🔋 [Medio]"
+            elif pct > 0.2:
+                icon = "🔋 [Bajo]"
+            else:
+                icon = "🪫 [Crítico]"
+                
+            self.batt_lbl.configure(text=f"{icon} {volt:.3f} V")
             bc = GREEN if pct > 0.5 else (YELLOW if pct > 0.2 else RED)
             self.batt_bar.configure(progress_color=bc)
             self.batt_lbl.configure(text_color=bc)
@@ -445,9 +600,12 @@ class App(ctk.CTk):
         self.stat_lbl["sigma"].configure(text=f"±{sigma:.1f}")
         self.stat_lbl["pulses"].configure(text=str(puls) if puls else "—")
 
-        self.tree.insert("", 0, values=tuple(row.values()))
+        # Insertar con zebra striping
+        tag = "even" if len(self.log_rows) % 2 == 0 else "odd"
+        self.tree.insert("", 0, values=tuple(row.values()), tags=(tag,))
         self.log_count_lbl.configure(text=f"{len(self.log_rows)} entradas")
         self._update_chart()
+        self._update_hist_chart()
 
     def _tick(self):
         if self.sess_start and self.running:
@@ -525,6 +683,7 @@ class App(ctk.CTk):
         for k in self.stat_lbl:
             self.stat_lbl[k].configure(text="—")
         self._update_chart()
+        self._update_hist_chart()
 
 
 if __name__ == "__main__":

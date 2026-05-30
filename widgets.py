@@ -20,18 +20,19 @@ MUTED   = "#8b949e"
 
 # CPM umbral → (color, etiqueta física)
 LEVELS = [
-    (50,           GREEN,  "Fondo natural"),
-    (100,          GREEN,  "Normal / UNSCEAR"),
-    (500,          YELLOW, "⚠ Elevado"),
-    (1000,         ORANGE, "⚠ Alto  >3 µSv/h"),
-    (float("inf"), RED,    "☠ Peligroso"),
+    (50,           GREEN,  "🟢 Fondo natural"),
+    (100,          GREEN,  "🟢 Normal / UNSCEAR"),
+    (500,          YELLOW, "🟡 Elevado"),
+    (1000,         ORANGE, "🟠 Alto  >3 µSv/h"),
+    (float("inf"), RED,    "🔴 Peligroso"),
 ]
 
 def level_for(cpm: float):
     for threshold, color, label in LEVELS:
         if cpm < threshold:
             return color, label
-    return RED, "☠ Peligroso"
+    return RED, "🔴 Peligroso"
+
 
 def lerp_color(t: float) -> str:
     """Verde → amarillo → rojo, t en [0, 1]."""
@@ -110,6 +111,27 @@ class ArcGauge(tk.Canvas):
                 self.create_arc(x0, y0, x1, y1,
                                 start=start, extent=extent,
                                 style="arc", outline=color, width=lw)
+
+        # ── Ticks / Divisiones de escala ──
+        num_ticks = 11  # Divisiones de 10% en 10%
+        for i in range(num_ticks):
+            frac = i / (num_ticks - 1)
+            deg = self._START_DEG + self._EXTENT * frac
+            rad = math.radians(-deg)
+            
+            tick_color = BORDER
+            if self._value is not None:
+                val_ratio = max(0.0, min(self._value / self.max_val, 1.0))
+                if frac <= val_ratio:
+                    tick_color = lerp_color(frac)
+            
+            r_start = r + lw / 2 + 2
+            r_end   = r + lw / 2 + 7
+            x_s = cx + r_start * math.cos(rad)
+            y_s = cy + r_start * math.sin(rad)
+            x_e = cx + r_end * math.cos(rad)
+            y_e = cy + r_end * math.sin(rad)
+            self.create_line(x_s, y_s, x_e, y_e, fill=tick_color, width=2)
 
         # ── Tamaños de fuente ──
         fs_big = max(14, int(r * 0.44))

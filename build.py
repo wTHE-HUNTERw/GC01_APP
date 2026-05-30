@@ -35,6 +35,32 @@ def build():
         except Exception as e:
             print(f"Advertencia: No se pudo borrar la carpeta 'build' ({e}). Se continuará de todos modos.")
 
+    # Asegurar que el ejecutable anterior no esté ejecutándose y bloquear el archivo
+    exe_path = os.path.join("dist", "GC01_RadPro_Monitor.exe")
+    if os.path.exists(exe_path):
+        print("Intentando eliminar el archivo ejecutable anterior en 'dist'...")
+        try:
+            os.remove(exe_path)
+        except PermissionError:
+            print("⚠️ El archivo ejecutable está bloqueado o en ejecución. Intentando cerrarlo...")
+            if sys.platform.startswith("win"):
+                try:
+                    subprocess.run(["taskkill", "/F", "/IM", "GC01_RadPro_Monitor.exe"],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    import time
+                    time.sleep(1) # Esperar a que Windows libere el handle del archivo
+                    os.remove(exe_path)
+                    print("¡Ejecutable anterior cerrado y eliminado correctamente!")
+                except Exception as e:
+                    print(f"❌ Error crítico: No se pudo eliminar el ejecutable en 'dist' ({e}).")
+                    print("Por favor, cierra la aplicación 'GC01_RadPro_Monitor.exe' desde el Administrador de Tareas y vuelve a intentarlo.")
+                    sys.exit(1)
+            else:
+                sys.exit(1)
+        except Exception as e:
+            print(f"Advertencia: No se pudo verificar o eliminar el ejecutable anterior: {e}")
+
+
     # Definir los argumentos de PyInstaller
     # - '--onefile': empaqueta todo en un único archivo ejecutable .exe
     # - '--windowed': oculta la ventana negra de la consola detrás de la interfaz gráfica

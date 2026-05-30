@@ -3,19 +3,24 @@ import subprocess
 import sys
 
 def build():
-    # Asegurar que las dependencias necesarias estén instaladas
-    try:
-        import PyInstaller
-    except ImportError:
-        print("PyInstaller no está instalado. Instalándolo ahora...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
+    # Asegurar que todas las dependencias necesarias estén instaladas en este entorno de Python
+    dependencies = {
+        "PyInstaller": "pyinstaller",
+        "customtkinter": "customtkinter",
+        "matplotlib": "matplotlib",
+        "serial": "pyserial",
+        "numpy": "numpy"
+    }
+
+    for module_name, pip_name in dependencies.items():
+        try:
+            __import__(module_name)
+        except ImportError:
+            print(f"La dependencia '{pip_name}' no está instalada. Instalándola ahora...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", pip_name])
     
-    try:
-        import customtkinter
-    except ImportError:
-        print("customtkinter no está instalado. Instalándolo ahora...")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "customtkinter"])
-        import customtkinter
+    import customtkinter
+
 
     # Obtener la ruta de instalación de customtkinter para copiar sus recursos (temas, fuentes, etc.)
     ctk_path = os.path.dirname(customtkinter.__file__)

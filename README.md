@@ -84,6 +84,44 @@ Las dependencias principales son:
 
 ---
 
+## 📦 Compilación a Ejecutable (.exe)
+
+Para crear un archivo `.exe` independiente que puedas ejecutar en cualquier computadora con Windows sin necesidad de tener Python instalado:
+
+1.  **Ejecutar el script de compilación automática**:
+    Hemos incluido el script [build.py](file:///c:/Users/erick/OneDrive/Escritorio/Aplicacion gc01/GC01_APP/build.py) que instala automáticamente `pyinstaller` (si no está presente) y compila el proyecto incluyendo correctamente todos los assets visuales y de configuración de `customtkinter`:
+    ```bash
+    python build.py
+    ```
+2.  **Resultado**:
+    Una vez terminado el proceso, encontrarás el ejecutable en:
+    `dist/GC01_RadPro_Monitor.exe`
+
+---
+
+## 🏷️ Cómo crear una Release en GitHub
+
+Para distribuir tu archivo `.exe` compilado a otros usuarios a través de la sección de descargas de GitHub:
+
+1.  **Sube los últimos cambios** de tu código a GitHub:
+    ```bash
+    git add .
+    git commit -m "Agregar script de compilación y actualizar instrucciones"
+    git push origin main
+    ```
+2.  Ingresa a la página de tu repositorio en GitHub: [https://github.com/wTHE-HUNTERw/GC01_APP](https://github.com/wTHE-HUNTERw/GC01_APP).
+3.  En el panel derecho, haz clic en **Releases** $\rightarrow$ **Create a new release** (Crear nueva release).
+4.  **Tag version (Etiqueta)**: Asigna una versión como por ejemplo `v1.0.0` y crea la etiqueta.
+5.  **Release title (Título)**: Dale un nombre descriptivo, como por ejemplo `GC-01 Rad Pro Monitor v1.0.0`.
+6.  **Description (Descripción)**: Escribe una breve descripción de las características principales de esta versión.
+7.  **Adjuntar el Ejecutable**:
+    Arrastra y suelta tu archivo `GC01_RadPro_Monitor.exe` (ubicado dentro de la carpeta `dist/`) en el área de carga que dice *"Attach binaries by dropping them here..."*.
+8.  Haz clic en el botón verde **Publish release** (Publicar release).
+
+¡Listo! Cualquiera podrá descargar directamente el archivo ejecutable listo para usar desde GitHub.
+
+---
+
 ## 📁 Estructura del Código
 
 *   `main.py`: Punto de entrada de la aplicación. Contiene el bucle de actualización, el hilo de comunicación de fondo (polling loop), la integración de la gráfica con matplotlib y la lógica de la ventana principal.

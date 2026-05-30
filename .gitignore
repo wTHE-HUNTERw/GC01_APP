@@ -17,3 +17,9 @@ ENV/
 *.njsproj
 *.sln
 *.swp
+
+# PyInstaller
+build/
+dist/
+*.spec
+

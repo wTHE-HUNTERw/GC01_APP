@@ -152,3 +152,21 @@ class SerialManager:
                     except ValueError:
                         pass
         return records
+
+    def get_tube_hv_duty_cycle(self) -> float | None:
+        """Retorna el ciclo de trabajo (duty cycle) actual del generador de alta tensión."""
+        r = self.send("GET tubeHVDutyCycle")
+        try:
+            return float(r)
+        except (TypeError, ValueError):
+            return None
+
+    def set_tube_hv_frequency(self, freq_hz: int) -> bool:
+        """Configura la frecuencia del generador de alta tensión (100 - 100000 Hz)."""
+        resp = self.send(f"SET tubeHVFrequency {freq_hz}")
+        return resp is not None
+
+    def reset_datalog(self) -> bool:
+        """Borra la memoria datalog interna del dispositivo. Retorna True si tiene éxito."""
+        resp = self.send("RESET datalog")
+        return resp is not None
